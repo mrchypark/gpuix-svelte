@@ -365,7 +365,8 @@ function apply_prop(el: ShadowNode, key: string, value: unknown) {
 function materialize(n: ShadowNode) {
 	if (n.kind === 'comment' || n.kind === 'fragment') return;
 
-	if (n.nativeId === null) {
+	const fresh = n.nativeId === null;
+	if (fresh) {
 		if (n.kind === 'text') {
 			// Blank text is only an anchor, so it stays virtual and
 			// doesn't occupy a slot in GPUI's flex layout.
@@ -400,11 +401,11 @@ function materialize(n: ShadowNode) {
 
 	for (let c = n.first; c; c = c.next) {
 		materialize(c);
-		if (c.nativeId !== null && !c.attached) attach(c);
+		if (c.nativeId !== null && !c.attached) attach(c, fresh);
 	}
 }
 
-function attach(n: ShadowNode) {
+function attach(n: ShadowNode, append = false) {
 	if (n.nativeId === null) return;
 
 	if (is_portal(n)) {
@@ -415,7 +416,8 @@ function attach(n: ShadowNode) {
 	const np = native_parent_of(n.parent);
 	if (np === null || np.nativeId === null) return;
 
-	const before = first_native_after(n.next);
+	// A fresh native parent is empty, so shadow-order appends need no sibling scan.
+	const before = append ? null : first_native_after(n.next);
 	emit(
 		before
 			? ['insertBefore', np.nativeId, n.nativeId, before.nativeId!]
